@@ -1,12 +1,25 @@
 ---
 title: "SPEI12 - Calculation Checker"
-output: html_notebook
+output:
+  html_document:
+    df_print: paged
 ---
 
 In the 'SPEI12 - Calculation.R' script, there are --- Checker No.#.
 These correlate to code chunks below that can be run to check the calculations.
 These were done through the calculation process and we believe that the code
 is correct. These are recorded for aid / subsequent checks.
+
+### Questions
+  - Do we need to have bias corrected the data?
+  - Do we need to use a reference period for the SPEI (baseline period)?
+  - Do requesters understand SPEI 12?
+
+```{r}
+# Load in a shapefile of the UK to check whether the output looks nice over the UK
+coast <- readOGR(dsn="I:/GIS Data", layer = "high_water_polyline - simplified")
+```
+
 
 # Checker 1
 ```{r 1}
@@ -116,15 +129,14 @@ levelplot(spei_map[,,y], col.regions = custom_cols, at=seq(-2, 2, length.out=100
 cbal_average = apply(climate_balance_monthy_map[,,(y-12):y], c(1,2), mean)
 levelplot(cbal_average, col.regions = custom_cols, at=seq(-80, 230, length.out=101), main = "12-month Climate Balance")
 ```
-
+This seems to show that the SPEI map is almost the inverse of the Climate Balance, which is unexpected.
 
 ```{r 10d}
 plot_ly(x = 1:120, y = pr_masked[33,40,1:120], type = 'scatter', mode = 'lines', name ='pr') %>%
   add_lines(x = 1:120, y = pet_masked[33,40,1:120], type = 'scatter', mode = 'lines', name ='pet') %>%
-  add_lines(x = 1:120, y = climate_balance_monthy_map[33,40,1:120], type = 'scatter', mode = 'lines', name ='bal') # %>%
-  add_lines(x = 1:120, y = spei_map[33,40,1:120], type = 'scatter', mode = 'lines', name ='SPEI')
+  add_lines(x = 1:120, y = climate_balance_monthy_map[33,40,1:120], type = 'scatter', mode = 'lines', name ='bal')
 ```
-# This seems to show that the SPEI map is almost the inverse of the Climate Balance, which is unexpected.
+
 
 ```{r 10e}
 # Look at how the climate balance, climate balance moving average and SPEI12 compare:
@@ -144,7 +156,94 @@ plot_ly(x = 1:120, y = climate_balance_monthy_map[a,b,1:120], type = 'scatter', 
 The Climate balance 12 month rolling average matches VERY closely to the relative SPEI12 value.
 
 So the Climate balance moving average and the SPEI correlate very strongly. But the maps 100% don't correlate between the two.
-# If I plot the Climate balance moving average and SPEI for 2 cells then, which each correlates on a cell level, we get big differences in climate balance but don't equate to the same differences in SPEI.
 
-Sp, maybe SPEI just doesn't correlate spatially with climate balance? It stated above that SPEI is a measure of the number of standard deviations from the norm - so it would make sense that each cell is its own unit and a low climate balance in one place may not reflect a low SPEI, if that variation in climate balance is not unusual... does that sound sensible?
+If we plot the Climate balance moving average and SPEI for 2 cells then, which each correlates on a cell level, we get big differences in climate balance but don't equate to the same differences in SPEI.
+
+So, maybe SPEI just doesn't correlate spatially with climate balance? It stated above that SPEI is a measure of the number of standard deviations from the norm - so it would make sense that each cell is its own unit and a low climate balance in one place may not reflect a low SPEI, if that variation in climate balance is not unusual...
+
+If it is a pixel that is regularly wet, and the drought index is defined as a distance in standard deviations from a mean, then the threshold for the wet pixel being in drought would be a 'wetter' threshold than a dry pixel, if that makes sense. So the climate balance would be wetter
+
+Google says: "magnitude of drought conditions with respect to normal conditions"
+
+# Checker 11
+Plot the SPEI along with a line showing the clasification of drought.
+```{r 11a}
+plot(ts(spei_map[30,25,]))#, title="Average SPEI @ [30,25,:]")
+abline(h=threshold, col="red")
+
+plot(ma(climate_balance_monthy_map[30, 25,]), col = "blue")
+```
+
+# Plot some maps showing the climate data averaged over the whole of the UK
+```{r 11b}
+pr_plot = flip(t(raster(pr_masked[,,480], crs=27700)))
+pet_plot = flip(t(raster(pet_masked[,,480], crs=27700)))
+cb_plot = climate_balance_daily[,,480]
+cb_plot[!UK_mask] = NA
+cb_plot = flip(t(raster(cb_plot, crs=27700)))
+
+extent(pr_plot) = grid_extent
+extent(pet_plot) = grid_extent
+extent(cb_plot) = grid_extent
+
+# Create Plots:
+par(mfrow=c(1, 3), mar = c(3,3,5,2))
+cuts = c(-5:20) #set breaks
+pal <- c(colorRampPalette(c("red","white"))(4),
+         colorRampPalette(c("white","blue"))(20))
+
+plot(pr_plot, main="Precipitation\n(mm/day)",
+     breaks=cuts, col = pal,
+     legend.args=list(text="", side=4, font=2, line=2, cex=1))
+plot(coast, add=TRUE)
+
+plot(pet_plot, main="Potential Evapotranspiration\n(mm/day)", 
+     breaks=cuts, col = pal,
+     legend.args=list(text="", side=4, line=2.5, cex.axis=3))
+plot(coast, add=TRUE)
+  
+plot(cb_plot, main="Climate Balance\n(mm/day)", 
+     breaks=cuts, col = pal,
+     legend.args=list(text="", side=4, font=4, line=2.5, 
+                      cex.lab=3, cex.axis=3, cex.main=3, cex.sub=3))
+plot(coast, add=TRUE)
+```
+
+Plot some maps showing the overall probability, mean and max drought length for the UK.
+```{r 11c}
+# Calculate the probability that a month is in drought for the whole time series:
+probability_of_drought_grid <- rowMeans(drought_indicator, na.rm=T, dim=2)
+
+# Probability that a month is a drought:
+drought_probability_raster <- flip(t(raster(probability_of_drought_grid, crs=27700)))
+extent(drought_probability_raster) = grid_extent
+
+# Average drought length for each pixel over the data:
+mean_drought_length <- apply(drought_indicator, c(1,2), length_stats, mean)
+mean_drought_length_raster <- flip(t(raster(mean_drought_length, crs=27700)))
+extent(mean_drought_length_raster) <- grid_extent
+
+# Maximum drought length for each pixel over the data:
+max_drought_length <- apply(drought_indicator, c(1,2), length_stats, max)
+max_drought_length_raster <- flip(t(raster(max_drought_length, crs=27700)))
+extent(max_drought_length_raster) <- grid_extent
+
+# Create Plots:
+par(mfrow=c(1, 3), mar = c(6,5,5,2))
+
+plot(drought_probability_raster,
+     main="Probability a month\nis in drought", 
+     legend.args=list(text="", side=4, font=2, line=2.5, cex=2))
+plot(coast, add=TRUE)
+
+plot(mean_drought_length_raster, 
+     main="Average drought length", 
+     legend.args=list(text="Months", side=4, font=2, line=2.5, cex=0.8))
+plot(coast, add=TRUE)
+
+plot(max_drought_length_raster, 
+     main="Maximum drought length", 
+     legend.args=list(text="Months", side=4, font=2, line=2.5, cex=0.8))
+plot(coast, add=TRUE)
+```
 

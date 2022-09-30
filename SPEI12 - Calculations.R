@@ -22,13 +22,18 @@
 
 # Set SPEI Processes ------------------------------------------------------
 
+# The following can be used so that you can write teh SPEI data, as this takes 
+# ages to calculate, and then read it in the future, to avoid calculating twice.
+setwd("I:/")
+
 calculate_spei = T
 store_spei = T
 read_spei  = F
 write_asciis = T
-output_path = "I:/SHETRAN_GB_2021/analysis/OpenCLIM July 2022 - Hist and UKCP_01/Ouputs/Climate_Droughts_SPEI/"
-# spei_backup_load_path = paste0(output_path, "SPEI 12.csv")
 
+output_path = "I:/SHETRAN_GB_2021/analysis/CLimatic-Drought/Outputs/"
+
+climate_projections = c("01", "04", "06", "07", "08", "09", "10", "11", "12", "13", "15", "05")
 
 # Preamble --- load packages --------------------------------------------
 # install.packages("SPEI")
@@ -38,7 +43,8 @@ output_path = "I:/SHETRAN_GB_2021/analysis/OpenCLIM July 2022 - Hist and UKCP_01
 # install.packages("plyr")
 # install.packages("abind")
 # install.packages("raster")
-# install.packages("grid")
+# install.packages("plotly")
+
 
 library(SPEI)
 library(ncdf4)
@@ -47,7 +53,7 @@ library(rgdal)
 library(plyr)
 library(abind)
 library(raster)
-library(grid)
+# library(grid)
 library(lattice)
 library(plotly)
 
@@ -67,14 +73,14 @@ read_netcdf <- function(f, obj) {
 }
 
 # Function to accumulate 1 month of daily data to monthly:
-# period_indexi: a variable that can be used to set the month/period of interest.
-# arr: the array to be used. Time is axis 3.
-# days: use to specify if a period other then 30 is desired.
-# This runs through the cells and sums each month.
-# The result is a list of vectors, each vector represents 1 month of PET, with 1 value per cell.
-# Vectors represent cells running from top to bottom and then from left to right.
-
 monthly_acc <- function(period_index, arr, days=30) {
+  
+  # period_indexi: a variable that can be used to set the month/period of interest.
+  # arr: the array to be used. Time is axis 3.
+  # days: use to specify if a period other then 30 is desired.
+  # This runs through the cells and sums each month.
+  # The result is a list of vectors, each vector represents 1 month of PET, with 1 value per cell.
+  # Vectors represent cells running from top to bottom and then from left to right.
   
   s = rowSums(arr[, , (period_index*days + 1) : ((period_index+1) * days)], dim=2)
   
@@ -83,18 +89,19 @@ monthly_acc <- function(period_index, arr, days=30) {
   return(s)
 }
 
-# Function to apply SPEI-12 calculations:
-# arr: an array of Easting, Northing, time.
-# spei_function <- function(arr, start, end) {
-#   
-#   # Convert into a time series:
-#   pixel_data = ts(arr, start=start, end=end, deltat=1/12)
-#   
-#   # Calculate SPEI12
-#   spei12 = spei(pixel_data, 12)$fitted
-#   
-#   return(as.vector(spei12))
-# }
+# SURPLUS - Function to apply SPEI-12 calculations:
+spei_function <- function(arr, start, end) {
+
+  # arr: an array of Easting, Northing, time.
+  
+  # Convert into a time series:
+  pixel_data = ts(arr, start=start, end=end, deltat=1/12)
+
+  # Calculate SPEI12
+  spei12 = spei(pixel_data, 12)$fitted
+
+  return(as.vector(spei12))
+}
 
 # Function to calculate length statistics for droughts:
 length_stats <- function(x, FUN){
@@ -112,8 +119,7 @@ length_stats <- function(x, FUN){
   return(r)
 }
 
-# Function to flip axies to match another dataset:
-
+# Function to flip axes to match another dataset:
 grid_apermer = function(data_grid, reference_dataset, grid_3D=FALSE){
   # data_grid: to be changed
   # reference_dataset: matrix/array of same lengths (can be rearranged).
@@ -131,7 +137,7 @@ grid_apermer = function(data_grid, reference_dataset, grid_3D=FALSE){
   
 }
 
-
+# Function for cropping edges from grids:
 grid_cropper <- function(data_grid, mask, grid_3D=FALSE){
   # Two objects of same extent and resolution.
   #   data_grid = type: raster or matrix.
@@ -189,7 +195,7 @@ grid_cropper <- function(data_grid, mask, grid_3D=FALSE){
   
 }
 
-
+# Function for rotating matricies / arrays:
 rotate <- function(x){
   t(apply(x, 2, rev))
 }
@@ -201,23 +207,13 @@ ma <- function(x, n = 12){
 }
 
 
-# Preamble --- read in datasets -------------------------------------------
 
-# set the working directory
-setwd("I:/")
-
-# Load in a shapefile of the UK to check whether the output looks nice over the UK
-coast <- readOGR(dsn="I:/GIS Data", layer = "high_water_polyline - simplified")
-
-climate_projections = c("13", "15", "05") #  "01", "04", "06", "07", "08", "09", "10", "11", "12"
-
-# Run through the Climate Projections -------------------------------------
+# Begin RCP for Loop ------------------------------------------------------
 for(rcp in climate_projections){
-  
+  # Run through the Climate Projections -------------------------------------
   print(rcp)
 
   # Set file names for PET data:
-
   file_names <- c(
     paste0("SHETRAN_GB_2021/ukcp18rcm_pet/", rcp, "/pet/day/latest/pet_rcp85_land-rcm_uk_12km_", rcp, "_day_19801201-19901130.nc"),
     paste0("SHETRAN_GB_2021/ukcp18rcm_pet/", rcp, "/pet/day/latest/pet_rcp85_land-rcm_uk_12km_", rcp, "_day_19901201-20001130.nc"),
@@ -266,7 +262,7 @@ for(rcp in climate_projections){
   # Read in a raster mask of the UK:
   UK_mask_full_extent <- rotate(as.matrix(read.table("GIS Data/UK mask UKCP18 extent BNG.asc", skip = 5)))
   
-      # CHECKER 2 ---
+    # CHECKER 2 ---
   
   uk_mask_raster = raster(t(UK_mask_full_extent[,ncol(UK_mask_full_extent):1]))
   extent(uk_mask_raster) <- grid_extent
@@ -278,7 +274,7 @@ for(rcp in climate_projections){
   pr = grid_cropper(pr, UK_mask_full_extent, grid_3D = TRUE)
   pet = grid_cropper(pet, UK_mask_full_extent, grid_3D = TRUE)
   
-      # CHECKER 4 ---
+    # CHECKER 4 ---
   
   uk_mask_raster = grid_cropper(data_grid = uk_mask_raster, mask = uk_mask_raster)
     
@@ -295,16 +291,16 @@ for(rcp in climate_projections){
   pr_masked = pr ; pr_masked[!UK_mask] = 0
   pet_masked  = pet ; pet_masked[!UK_mask] = 0
   
-      # CHECKER 7 ---
+    # CHECKER 7 ---
   
   # Calculate the Climate Balance -------------------------------------------
   
   # Convert the daily Precipitation and PET data to monthly Climate Balance data:
   climate_balance_daily <- pr_masked - pet_masked
-      #  climate_balance_daily[,1,1] is the bottom row
-      #  climate_balance_daily[1,,1] is the left column
+    #  climate_balance_daily[,1,1] is the bottom row
+    #  climate_balance_daily[1,,1] is the left column
   
-      # CHECKER 8---
+    # CHECKER 8---
   
   # Calculate the number of months in the Climate Balance dataset:
   n_months <- (dim(climate_balance_daily)[3] / 30) - 1 # -1 so that we start at 0 months/days, not 1 month/30 days
@@ -389,90 +385,15 @@ for(rcp in climate_projections){
   #      legend.args=list(text="", side=4, font=2, line=2.5, cex=0.8))
 
 
-  # Calculate Drought Statistics --------------------------------------------
+
+  # Calculate Drought Indicator ---------------------------------------------
   
-  # Create an indicator array showing droughts (SPEI < threshold)
   threshold = -1
-  
-  # Plot SPEI time series scatter plot(1 cell)
-  plot(ts(spei_map[30,25,]))#, title="Average SPEI @ [30,25,:]")
-  abline(h=threshold, col="red")
-  # plot(ma(climate_balance_monthy_map[30, 25,]), col = "blue")
-  
   
   # Create indicator variable for if it is in drought:
   drought_indicator <- spei_map[,,] <= threshold # 12:n_months if you want to Remove initial NA Values from the data.
-  # dim(drought_indicator)
-  # ind_1s <- array(0, dim=dim(drought_indicator))
-  # ind_1s[drought_indicator] = 1
   
-  # Calculate the probability that a month is in drought:
-  probability_of_drought_grid <- rowMeans(drought_indicator, na.rm=T, dim=2)
-  
-  
-  # Plot Climate Data -------------------------------------------------------
-  
-  pr_plot = flip(t(raster(pr_masked[,,480], crs=27700)))
-  pet_plot = flip(t(raster(pet_masked[,,480], crs=27700)))
-  cb_plot = climate_balance_daily[,,480]
-  cb_plot[!UK_mask] = NA
-  cb_plot = flip(t(raster(cb_plot, crs=27700)))
-  
-  extent(pr_plot) = grid_extent
-  extent(pet_plot) = grid_extent
-  extent(cb_plot) = grid_extent
-  
-  # Create Plots:
-  par(mfrow=c(1, 3), mar = c(3,3,5,2))
-  
-  plot(pr_plot, main="Precipitation\n(mm/day)", 
-       legend.args=list(text="", side=4, font=2, line=2, cex=1))
-  plot(coast, add=TRUE)
-  
-  plot(pet_plot, main="Potential Evapotranspiration\n(mm/day)", 
-       legend.args=list(text="", side=4, line=2.5, cex.axis=3))
-  plot(coast, add=TRUE)
-  
-  plot(cb_plot, main="Climate Balance\n(mm/day)", 
-       legend.args=list(text="", side=4, font=4, line=2.5, 
-                        cex.lab=3, cex.axis=3, cex.main=3, cex.sub=3))
-  plot(coast, add=TRUE)
-  
-  # Plot Drought Statistics -------------------------------------------------
-  # [WHOLE PERIOD]
-  
-  # Probability that a month is a drought:
-  drought_probability_raster <- flip(t(raster(probability_of_drought_grid, crs=27700)))
-  extent(drought_probability_raster) = grid_extent
-  
-  # Average drought length for each pixel over the data:
-  mean_drought_length <- apply(drought_indicator, c(1,2), length_stats, mean)
-  mean_drought_length_raster <- flip(t(raster(mean_drought_length, crs=27700)))
-  extent(mean_drought_length_raster) <- grid_extent
-  
-  # Maximum drought length for each pixel over the data:
-  max_drought_length <- apply(drought_indicator, c(1,2), length_stats, max)
-  max_drought_length_raster <- flip(t(raster(max_drought_length, crs=27700)))
-  extent(max_drought_length_raster) <- grid_extent
-  
-  # Create Plots:
-  par(mfrow=c(1, 3), mar = c(6,5,5,2))
-  
-  plot(drought_probability_raster,
-       main="Probability a month\nis in drought", 
-       legend.args=list(text="", side=4, font=2, line=2.5, cex=2))
-  plot(coast, add=TRUE)
-  
-  plot(mean_drought_length_raster, 
-       main="Average drought length", 
-       legend.args=list(text="Months", side=4, font=2, line=2.5, cex=0.8))
-  plot(coast, add=TRUE)
-  
-  plot(max_drought_length_raster, 
-       main="Maximum drought length", 
-       legend.args=list(text="Months", side=4, font=2, line=2.5, cex=0.8))
-  plot(coast, add=TRUE)
-
+    # CHECKER 11 ---
 
   # Create Time Averaged Metrics --------------------------------------------
 
@@ -516,42 +437,40 @@ for(rcp in climate_projections){
     dir.create(paste0(output_path, "Average Length of Climatic Drought - Gridded - ", rcp, "/"))
     dir.create(paste0(output_path, "Maximum Length of Climatic Drought - Gridded - ", rcp, "/"))
   
-    # Create grids of drought probability for the different periods (10 decades):
-    for(i in 1:10){
-      
-      # --- DECADES--- 
-      
-      t1 = 120*(i-1)+1
-      t2 = 120*i # 10yrs
-      
-      # Probability that a month is a drought:
-      temp_raster = flip(t(raster(rowMeans(drought_indicator[,,t1:t2], na.rm=T, dim=2), crs=27700)))
-      extent(temp_raster) = grid_extent
+
+  # --- DECADES -------------------------------------------------------------
+
+  # Create grids of drought probability for the different periods (10 decades):
+  for(i in 1:10){
     
-      writeRaster(temp_raster, format='ascii', overwrite=TRUE,
-                  filename=paste0(output_path, "Probability of Climatic Drought - Gridded - ", rcp, "/drought_probability_raster_BC04_", decades[i], ".asc"))
-      
-      
-      # Average drought length for each pixel over the data:
-      temp_raster <- flip(t(raster(apply(drought_indicator[,,t1:t2], c(1,2), length_stats, mean), crs=27700)))
-      extent(temp_raster) <- grid_extent
-      
-      writeRaster(temp_raster, format='ascii', overwrite=TRUE,
-                  filename=paste0(output_path, "Average Length of Climatic Drought - Gridded - ", rcp, "/drought_mean_length_raster_", rcp, "_", decades[i], ".asc"))
-      
-      # Maximum drought length for each pixel over the data:
-      # Supresses warning: no non-missing arguments to max; returning -Inf (fixed below)
-      temp_raster <- apply(drought_indicator[,,t1:t2], c(1,2), length_stats, max)
-      temp_raster[temp_raster==-Inf]=0 ; temp_raster[!UK_mask] = NA
-      temp_raster <- flip(t(raster(temp_raster, crs=27700)))
-      extent(temp_raster) <- grid_extent
-      
-      writeRaster(temp_raster, format='ascii', overwrite=TRUE,
-                  filename=paste0(output_path, "Maximum Length of Climatic Drought - Gridded - ", rcp, "/drought_max_length_raster_", rcp, "_", decades[i], ".asc"))
-    }
+    t1 = 120*(i-1)+1 # 120 is 10yrs in months
+    t2 = 120*i 
     
-      # --- 30 YEAR ROLLING PERIODS---
+    # Probability that a month is a drought:
+    temp_raster = flip(t(raster(rowMeans(drought_indicator[,,t1:t2], na.rm=T, dim=2), crs=27700)))
+    extent(temp_raster) = grid_extent
+    writeRaster(temp_raster, format='ascii', overwrite=TRUE,
+                filename=paste0(output_path, "Probability of Climatic Drought - Gridded - ", rcp, "/drought_probability_raster_BC04_", decades[i], ".asc"))
     
+    # Average drought length:
+    temp_raster <- flip(t(raster(apply(drought_indicator[,,t1:t2], c(1,2), length_stats, mean), crs=27700)))
+    extent(temp_raster) <- grid_extent
+    writeRaster(temp_raster, format='ascii', overwrite=TRUE,
+                filename=paste0(output_path, "Average Length of Climatic Drought - Gridded - ", rcp, "/drought_mean_length_raster_", rcp, "_", decades[i], ".asc"))
+    
+    # Maximum drought length for each pixel over the data:
+    # Supresses warning: no non-missing arguments to max; returning -Inf (fixed below)
+    temp_raster <- apply(drought_indicator[,,t1:t2], c(1,2), length_stats, max)
+    temp_raster[temp_raster==-Inf]=0 ; temp_raster[!UK_mask] = NA
+    temp_raster <- flip(t(raster(temp_raster, crs=27700)))
+    extent(temp_raster) <- grid_extent
+    writeRaster(temp_raster, format='ascii', overwrite=TRUE,
+                filename=paste0(output_path, "Maximum Length of Climatic Drought - Gridded - ", rcp, "/drought_max_length_raster_", rcp, "_", decades[i], ".asc"))
+  }
+  
+
+  # --- 30 YEAR ROLLING PERIODS ---------------------------------------------
+
     for(i in 1:10){
       t1 = 120*(i-1)+1
       t2 = 120*(i+2) # 30 yrs
@@ -561,34 +480,31 @@ for(rcp in climate_projections){
         
         temp_raster = flip(t(raster(rowMeans(drought_indicator[,,t1:t2], na.rm=T, dim=2), crs=27700)))
         extent(temp_raster) = grid_extent
-        
         writeRaster(temp_raster,
                     filename=paste0(output_path, "Probability of Climatic Drought - Gridded - ", rcp, "/drought_probability_raster_", rcp, "_", periods[i], ".asc"),
                     format='ascii', overwrite=TRUE)
         
-        # Average drought length for each pixel over the data:
+        # Average drought length:
         temp_raster <- flip(t(raster(apply(drought_indicator[,,t1:t2], c(1,2), length_stats, mean), crs=27700)))
         extent(temp_raster) <- grid_extent
-        
         writeRaster(temp_raster, format='ascii', overwrite=TRUE,
                     filename=paste0(output_path, "Average Length of Climatic Drought - Gridded - ", rcp, "/drought_mean_length_raster_", rcp, "_", periods[i], ".asc"))
         
-        # Maximum drought length for each pixel over the data:
+        # Maximum drought length:
         # Supresses warning: no non-missing arguments to max; returning -Inf (fixed below)
         temp_raster <- apply(drought_indicator[,,t1:t2], c(1,2), length_stats, max)
         temp_raster[temp_raster==-Inf]=0 ; temp_raster[!UK_mask] = NA
         temp_raster <- flip(t(raster(temp_raster, crs=27700)))
         extent(temp_raster) <- grid_extent
-        
         writeRaster(temp_raster, format='ascii', overwrite=TRUE,
                     filename=paste0(output_path, "Maximum Length of Climatic Drought - Gridded - ", rcp, "/drought_max_length_raster_", rcp, "_", periods[i], ".asc"))
         
-      
       }
     }
     
-    # --- WARMING PERIODS ---
-    
+
+    # --- WARMING PERIODS -----------------------------------------------------
+
     for(i in warming_levels){
       
       start_year = warming_database[which(rownames(warming_database)==i),
@@ -596,26 +512,24 @@ for(rcp in climate_projections){
       wp = 12*(start_year-1980)
       wp = c((wp+1) : min((wp+30*12), dim(drought_indicator)[3])) # add 30 yrs
       
+      # Probability a month is a drought:
       temp_raster = flip(t(raster(rowMeans(drought_indicator[,,wp], na.rm=T, dim=2), crs=27700)))
       extent(temp_raster) = grid_extent
-      
       writeRaster(temp_raster, format='ascii', overwrite=TRUE,
                   filename=paste0(output_path, "Probability of Climatic Drought - Gridded - ", rcp, "/drought_probability_raster_", rcp, "_", as.character(start_year), "-", as.character(start_year+30), ".asc"))
       
-      # Average drought length for each pixel over the data:
+      # Average drought length:
       temp_raster <- flip(t(raster(apply(drought_indicator[,,wp], c(1,2), length_stats, mean), crs=27700)))
       extent(temp_raster) <- grid_extent
-      
       writeRaster(temp_raster, format='ascii', overwrite=TRUE,
                   filename=paste0(output_path, "Average Length of Climatic Drought - Gridded - ", rcp, "/drought_mean_length_raster_", rcp, "_", as.character(start_year), "-", as.character(start_year+30), ".asc"))
       
-      # Maximum drought length for each pixel over the data:
+      # Maximum drought length:
       # Supresses warning: no non-missing arguments to max; returning -Inf (fixed below)
       temp_raster <- apply(drought_indicator[,,wp], c(1,2), length_stats, max)
       temp_raster[temp_raster==-Inf]=0 ; temp_raster[!UK_mask] = NA
       temp_raster <- flip(t(raster(temp_raster, crs=27700)))
       extent(temp_raster) <- grid_extent
-      
       writeRaster(temp_raster, format='ascii', overwrite=TRUE,
                   filename=paste0(output_path, "Maximum Length of Climatic Drought - Gridded - ", rcp, "/drought_max_length_raster_", rcp, "_", as.character(start_year), "-", as.character(start_year+30), ".asc"))
       
