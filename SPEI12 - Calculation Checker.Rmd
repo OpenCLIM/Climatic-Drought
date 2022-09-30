@@ -1,0 +1,150 @@
+---
+title: "SPEI12 - Calculation Checker"
+output: html_notebook
+---
+
+In the 'SPEI12 - Calculation.R' script, there are --- Checker No.#.
+These correlate to code chunks below that can be run to check the calculations.
+These were done through the calculation process and we believe that the code
+is correct. These are recorded for aid / subsequent checks.
+
+# Checker 1
+```{r 1}
+image(pet[,,12]) # > Produces plot of UK, correct orientation.
+
+# With better plotting:
+x = 90; levelplot(pet[,,x], col.regions = terrain.colors(100), at=seq(0, (2/3)*max(pet[,,x]), length.out=12))
+
+# For 10 years:
+levelplot(rowSums(pet[,,12:(12*10)], dims = 2), col.regions = terrain.colors(100))
+```
+
+# Checker 2
+```{r 2}
+image(UK_mask_full_extent) # > Produces plot of UK, correct orientation.
+dim(UK_mask_full_extent)
+```
+
+# Checker 3
+```{r 3}
+image(uk_mask_raster) # > Produces plot of UK, correct orientation.
+image(pet[,,12])
+```
+
+# Checker 4
+```{r 4}
+image(pet[,,1]) # > Correct orientation
+```
+
+# Checker 5
+```{r 5}
+image(uk_mask_raster) # > Produces plot of UK, correct orientation.
+```
+
+# Checker 6
+```{r 6}
+image(UK_mask) # > Produces plot of UK, correct orientation.
+```
+
+Everything should now be in the same orientation, everything is cropped.
+UK_mask is matrix, PET/PR cropped are arrays, uk_mask_raster is raster
+uk_mask_raster lists rows then columns, others are columns then rows
+
+# Checker 7
+```{r 7}
+image(pr[,,1])
+image(pet_masked[,,1])
+x = 30; levelplot(pr_masked[,,x], col.regions = terrain.colors(100),
+                  at=seq(0.1, max(pr_masked[,,x]), length.out=12))
+```
+
+# Checker 8
+```{r 8}
+plot(cumsum(colSums(pr_masked, dims = 2)), type = "l")
+lines(cumsum(colSums(pet_masked, dims = 2)), col = 2)
+lines(cumsum(colSums(climate_balance_daily, dims = 2)), col = 3)
+```
+
+# Checker 9
+```{r 9}
+climate_balance_monthy_map <-
+  array(climate_balance_monthy,
+        dim=c(dim(climate_balance_monthy)[1], # months
+              dim(climate_balance_daily)[1], # columns (Easting)
+              dim(climate_balance_daily)[2])) # rows (Northing)
+climate_balance_monthy_map <- aperm(climate_balance_monthy_map, c(2, 3, 1))
+
+levelplot(climate_balance_monthy_map[,,30],
+          col.regions = terrain.colors(100),
+          at=seq(min(climate_balance_monthy_map[,,30], na.rm = T),
+                 max(climate_balance_monthy_map[,,30], na.rm = T),
+                 length.out=12))
+```
+
+# Checker 10
+```{r 10a}
+dim(spei_map)  #  image(spei_map[,,120])
+```
+
+
+```{r 10b}
+custom_cols = c(
+  colorRampPalette(c("green", "white"))(50),
+  colorRampPalette("white")(1),
+  colorRampPalette(c("white","red"))(50))
+
+# Set final timestep to check up to: 
+y = 49
+# Get max, symmetrical data ranges:
+range_val = range(climate_balance_monthy_map[,,(y-12):y], na.rm = T)
+range_val = max(abs(range_val))
+# Run through the 12 preceding timesteps:
+for(m in (y-12):y){
+  # Plot the climate balance for those months:
+    x = climate_balance_monthy_map[,,m]
+    print(
+      levelplot(x, 
+                col.regions = custom_cols,
+                at=seq(-range_val, range_val, length.out=101)))
+}
+```
+
+
+```{r 10c}
+# Now plot the corresponding SPEI map month - these should match up:
+levelplot(spei_map[,,y], col.regions = custom_cols, at=seq(-2, 2, length.out=100), main="SPEI")
+cbal_average = apply(climate_balance_monthy_map[,,(y-12):y], c(1,2), mean)
+levelplot(cbal_average, col.regions = custom_cols, at=seq(-80, 230, length.out=101), main = "12-month Climate Balance")
+```
+
+
+```{r 10d}
+plot_ly(x = 1:120, y = pr_masked[33,40,1:120], type = 'scatter', mode = 'lines', name ='pr') %>%
+  add_lines(x = 1:120, y = pet_masked[33,40,1:120], type = 'scatter', mode = 'lines', name ='pet') %>%
+  add_lines(x = 1:120, y = climate_balance_monthy_map[33,40,1:120], type = 'scatter', mode = 'lines', name ='bal') # %>%
+  add_lines(x = 1:120, y = spei_map[33,40,1:120], type = 'scatter', mode = 'lines', name ='SPEI')
+```
+# This seems to show that the SPEI map is almost the inverse of the Climate Balance, which is unexpected.
+
+```{r 10e}
+# Look at how the climate balance, climate balance moving average and SPEI12 compare:
+a=16 ; b=62 ; bal_ma_1 = ma(climate_balance_monthy_map[a,b,1:120], 12)
+c=25 ; d=33 ; bal_ma_2 = ma(climate_balance_monthy_map[c,d,1:120], 12)
+
+plot_ly(x = 1:120, y = climate_balance_monthy_map[a,b,1:120], type = 'scatter', mode = 'lines', name ='BAL 1') %>%
+  add_lines(x = 1:120, y = bal_ma_1, type = 'scatter', mode = 'lines', name ='BAL 1 MA') %>%
+  add_lines(x = 1:120, y = spei_map[a,b,1:120], type = 'scatter', mode = 'lines', name ='SPEI-12 1', yaxis = "y2") %>%
+  
+  add_lines(x = 1:120, y = climate_balance_monthy_map[c,d,1:120], type = 'scatter', mode = 'lines', name ='BAL 2') %>%
+  add_lines(x = 1:120, y = bal_ma_2, type = 'scatter', mode = 'lines', name ='BAL 2 MA') %>%
+  add_lines(x = 1:120, y = spei_map[c,d,1:120], type = 'scatter', mode = 'lines', name ='SPEI-12 2', yaxis = "y2") %>%
+  
+  layout(yaxis2 = list(side='right', overlaying='y'))
+```
+The Climate balance 12 month rolling average matches VERY closely to the relative SPEI12 value.
+
+So the Climate balance moving average and the SPEI correlate very strongly. But the maps 100% don't correlate between the two.
+# If I plot the Climate balance moving average and SPEI for 2 cells then, which each correlates on a cell level, we get big differences in climate balance but don't equate to the same differences in SPEI.
+
+Sp, maybe SPEI just doesn't correlate spatially with climate balance? It stated above that SPEI is a measure of the number of standard deviations from the norm - so it would make sense that each cell is its own unit and a low climate balance in one place may not reflect a low SPEI, if that variation in climate balance is not unusual... does that sound sensible?
+
