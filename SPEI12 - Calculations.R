@@ -33,8 +33,9 @@ write_asciis = T
 
 output_path = "I:/SHETRAN_GB_2021/analysis/CLimatic-Drought/Outputs/"
 
-climate_projections = c("01", "04", "06", "07", "08", "09", "10", "11", "12", "13", "15", "05")
+climate_projections = c("01", "04", "05", "06", "07", "08", "09", "10", "11", "12", "13", "15")
 
+  
 # Preamble --- load packages --------------------------------------------
 # install.packages("SPEI")
 # install.packages("ncdf4")
@@ -215,16 +216,16 @@ for(rcp in climate_projections){
 
   # Set file names for PET data:
   file_names <- c(
-    paste0("SHETRAN_GB_2021/ukcp18rcm_pet/", rcp, "/pet/day/latest/pet_rcp85_land-rcm_uk_12km_", rcp, "_day_19801201-19901130.nc"),
-    paste0("SHETRAN_GB_2021/ukcp18rcm_pet/", rcp, "/pet/day/latest/pet_rcp85_land-rcm_uk_12km_", rcp, "_day_19901201-20001130.nc"),
-    paste0("SHETRAN_GB_2021/ukcp18rcm_pet/", rcp, "/pet/day/latest/pet_rcp85_land-rcm_uk_12km_", rcp, "_day_20001201-20101130.nc"),
-    paste0("SHETRAN_GB_2021/ukcp18rcm_pet/", rcp, "/pet/day/latest/pet_rcp85_land-rcm_uk_12km_", rcp, "_day_20101201-20201130.nc"),
-    paste0("SHETRAN_GB_2021/ukcp18rcm_pet/", rcp, "/pet/day/latest/pet_rcp85_land-rcm_uk_12km_", rcp, "_day_20201201-20301130.nc"),
-    paste0("SHETRAN_GB_2021/ukcp18rcm_pet/", rcp, "/pet/day/latest/pet_rcp85_land-rcm_uk_12km_", rcp, "_day_20301201-20401130.nc"),
-    paste0("SHETRAN_GB_2021/ukcp18rcm_pet/", rcp, "/pet/day/latest/pet_rcp85_land-rcm_uk_12km_", rcp, "_day_20401201-20501130.nc"),
-    paste0("SHETRAN_GB_2021/ukcp18rcm_pet/", rcp, "/pet/day/latest/pet_rcp85_land-rcm_uk_12km_", rcp, "_day_20501201-20601130.nc"),
-    paste0("SHETRAN_GB_2021/ukcp18rcm_pet/", rcp, "/pet/day/latest/pet_rcp85_land-rcm_uk_12km_", rcp, "_day_20601201-20701130.nc"),
-    paste0("SHETRAN_GB_2021/ukcp18rcm_pet/", rcp, "/pet/day/latest/pet_rcp85_land-rcm_uk_12km_", rcp, "_day_20701201-20801130.nc")
+    paste0("SHETRAN_GB_2021/Inputs/ukcp18rcm_pet/", rcp, "/pet/day/latest/pet_rcp85_land-rcm_uk_12km_", rcp, "_day_19801201-19901130.nc"),
+    paste0("SHETRAN_GB_2021/Inputs/ukcp18rcm_pet/", rcp, "/pet/day/latest/pet_rcp85_land-rcm_uk_12km_", rcp, "_day_19901201-20001130.nc"),
+    paste0("SHETRAN_GB_2021/Inputs/ukcp18rcm_pet/", rcp, "/pet/day/latest/pet_rcp85_land-rcm_uk_12km_", rcp, "_day_20001201-20101130.nc"),
+    paste0("SHETRAN_GB_2021/Inputs/ukcp18rcm_pet/", rcp, "/pet/day/latest/pet_rcp85_land-rcm_uk_12km_", rcp, "_day_20101201-20201130.nc"),
+    paste0("SHETRAN_GB_2021/Inputs/ukcp18rcm_pet/", rcp, "/pet/day/latest/pet_rcp85_land-rcm_uk_12km_", rcp, "_day_20201201-20301130.nc"),
+    paste0("SHETRAN_GB_2021/Inputs/ukcp18rcm_pet/", rcp, "/pet/day/latest/pet_rcp85_land-rcm_uk_12km_", rcp, "_day_20301201-20401130.nc"),
+    paste0("SHETRAN_GB_2021/Inputs/ukcp18rcm_pet/", rcp, "/pet/day/latest/pet_rcp85_land-rcm_uk_12km_", rcp, "_day_20401201-20501130.nc"),
+    paste0("SHETRAN_GB_2021/Inputs/ukcp18rcm_pet/", rcp, "/pet/day/latest/pet_rcp85_land-rcm_uk_12km_", rcp, "_day_20501201-20601130.nc"),
+    paste0("SHETRAN_GB_2021/Inputs/ukcp18rcm_pet/", rcp, "/pet/day/latest/pet_rcp85_land-rcm_uk_12km_", rcp, "_day_20601201-20701130.nc"),
+    paste0("SHETRAN_GB_2021/Inputs/ukcp18rcm_pet/", rcp, "/pet/day/latest/pet_rcp85_land-rcm_uk_12km_", rcp, "_day_20701201-20801130.nc")
   )
   
   # Read in PET data:
@@ -333,6 +334,7 @@ for(rcp in climate_projections){
   
   # Convert the Climate Balance into a time series:
   climate_balance_ts <- ts(climate_balance_monthy, start=start, end=end, frequency=12) 
+  climate_balance_ts[is.na(climate_balance_ts)]=0 # Replace the NAs as these ruin the SPEI...
   # ^^ I don't think this actually uses the dates, as these are incorrect anyway
   
   # Calculate SPEI12 - this is slow as I think it processes the masked 0s :(
@@ -450,7 +452,7 @@ for(rcp in climate_projections){
     temp_raster = flip(t(raster(rowMeans(drought_indicator[,,t1:t2], na.rm=T, dim=2), crs=27700)))
     extent(temp_raster) = grid_extent
     writeRaster(temp_raster, format='ascii', overwrite=TRUE,
-                filename=paste0(output_path, "Probability of Climatic Drought - Gridded - ", rcp, "/drought_probability_raster_BC04_", decades[i], ".asc"))
+                filename=paste0(output_path, "Probability of Climatic Drought - Gridded - ", rcp, "/drought_probability_raster_", rcp, "_", decades[i], ".asc"))
     
     # Average drought length:
     temp_raster <- flip(t(raster(apply(drought_indicator[,,t1:t2], c(1,2), length_stats, mean), crs=27700)))
