@@ -1,13 +1,13 @@
 # -------------------------------------------------------------------------
-# UKCP18 SPEI12 Calulations
+# UKCP18 SPEI Calulations
 # Amy Green & Ben Smith
 # 21/07/2022
 # OpenCLIM Project
 # -------------------------------------------------------------------------
 
 # This code takes UKCP18 rainfall and Potential Evapotranspiration data and
-# calculates SPEI12 statistics that will be used for reporting the affect
-# of climate change on droughts.
+# calculates SPEI statistics at desired intervals that will be used for 
+# reporting the affect of climate change on droughts.
 # All climate datasets are in water years (they start in November).
 
 # NOTE: ALL WARMING PERIODS THAT EXTEND BEYOND 1980 ARE SIMPLY CUT SHORT. E.g. 08/10/13/15
@@ -26,14 +26,17 @@
 # ages to calculate, and then read it in the future, to avoid calculating twice.
 setwd("I:/")
 
-calculate_spei = T
-store_spei = T
-read_spei  = F
-write_asciis = T
+SPEI_months = 3 # 3/6/12
 
-output_path = "I:/SHETRAN_GB_2021/analysis/CLimatic-Drought/Outputs/"
+calculate_spei = TRUE
+store_spei = TRUE
+read_spei  = FALSE
+write_asciis = TRUE
 
-climate_projections = c("01", "04", "05", "06", "07", "08", "09", "10", "11", "12", "13", "15")
+output_path = paste0("I:/SHETRAN_GB_2021/08_Analysis/Climatic-Drought/Outputs/SPEI_", SPEI_months, "/")
+# dir.create(output_path)
+
+climate_projections = c("12", "13", "15") #"08", "09", "10", "11") # "04", "05", "06", "07") #, , ) # "01"
 
   
 # Preamble --- load packages --------------------------------------------
@@ -88,20 +91,6 @@ monthly_acc <- function(period_index, arr, days=30) {
   s = as.vector(matrix(s, ncol=1))
   
   return(s)
-}
-
-# SURPLUS - Function to apply SPEI-12 calculations:
-spei_function <- function(arr, start, end) {
-
-  # arr: an array of Easting, Northing, time.
-  
-  # Convert into a time series:
-  pixel_data = ts(arr, start=start, end=end, deltat=1/12)
-
-  # Calculate SPEI12
-  spei12 = spei(pixel_data, 12)$fitted
-
-  return(as.vector(spei12))
 }
 
 # Function to calculate length statistics for droughts:
@@ -202,7 +191,7 @@ rotate <- function(x){
 }
 
 # Calculate Moving average
-ma <- function(x, n = 12){
+ma <- function(x, n = SPEI_months){
   # https://stackoverflow.com/questions/743812/calculating-moving-average
   stats::filter(x, rep(1 / n, n), sides = 1)
 }
@@ -211,21 +200,24 @@ ma <- function(x, n = 12){
 
 # Begin RCP for Loop ------------------------------------------------------
 for(rcp in climate_projections){
+  
   # Run through the Climate Projections -------------------------------------
   print(rcp)
 
   # Set file names for PET data:
+  PET_files = paste0("SHETRAN_GB_2021/02_Input_Data/ukcp18rcm_pet/", rcp, "/pet/day/latest/pet_rcp85_land-rcm_uk_12km_", rcp)
+  
   file_names <- c(
-    paste0("SHETRAN_GB_2021/Inputs/ukcp18rcm_pet/", rcp, "/pet/day/latest/pet_rcp85_land-rcm_uk_12km_", rcp, "_day_19801201-19901130.nc"),
-    paste0("SHETRAN_GB_2021/Inputs/ukcp18rcm_pet/", rcp, "/pet/day/latest/pet_rcp85_land-rcm_uk_12km_", rcp, "_day_19901201-20001130.nc"),
-    paste0("SHETRAN_GB_2021/Inputs/ukcp18rcm_pet/", rcp, "/pet/day/latest/pet_rcp85_land-rcm_uk_12km_", rcp, "_day_20001201-20101130.nc"),
-    paste0("SHETRAN_GB_2021/Inputs/ukcp18rcm_pet/", rcp, "/pet/day/latest/pet_rcp85_land-rcm_uk_12km_", rcp, "_day_20101201-20201130.nc"),
-    paste0("SHETRAN_GB_2021/Inputs/ukcp18rcm_pet/", rcp, "/pet/day/latest/pet_rcp85_land-rcm_uk_12km_", rcp, "_day_20201201-20301130.nc"),
-    paste0("SHETRAN_GB_2021/Inputs/ukcp18rcm_pet/", rcp, "/pet/day/latest/pet_rcp85_land-rcm_uk_12km_", rcp, "_day_20301201-20401130.nc"),
-    paste0("SHETRAN_GB_2021/Inputs/ukcp18rcm_pet/", rcp, "/pet/day/latest/pet_rcp85_land-rcm_uk_12km_", rcp, "_day_20401201-20501130.nc"),
-    paste0("SHETRAN_GB_2021/Inputs/ukcp18rcm_pet/", rcp, "/pet/day/latest/pet_rcp85_land-rcm_uk_12km_", rcp, "_day_20501201-20601130.nc"),
-    paste0("SHETRAN_GB_2021/Inputs/ukcp18rcm_pet/", rcp, "/pet/day/latest/pet_rcp85_land-rcm_uk_12km_", rcp, "_day_20601201-20701130.nc"),
-    paste0("SHETRAN_GB_2021/Inputs/ukcp18rcm_pet/", rcp, "/pet/day/latest/pet_rcp85_land-rcm_uk_12km_", rcp, "_day_20701201-20801130.nc")
+    paste0(PET_files, "_day_19801201-19901130.nc"),
+    paste0(PET_files, "_day_19901201-20001130.nc"),
+    paste0(PET_files, "_day_20001201-20101130.nc"),
+    paste0(PET_files, "_day_20101201-20201130.nc"),
+    paste0(PET_files, "_day_20201201-20301130.nc"),
+    paste0(PET_files, "_day_20301201-20401130.nc"),
+    paste0(PET_files, "_day_20401201-20501130.nc"),
+    paste0(PET_files, "_day_20501201-20601130.nc"),
+    paste0(PET_files, "_day_20601201-20701130.nc"),
+    paste0(PET_files, "_day_20701201-20801130.nc")
   )
   
   # Read in PET data:
@@ -236,17 +228,19 @@ for(rcp in climate_projections){
       # CHECKER --- 1
 
   # Read in precipitation data:
+  pr_files = paste0("UKCP18_UK_12km/", rcp, "/pr/day/latest/pr_rcp85_land-rcm_uk_12km_", rcp)
+  
   file_names <- c(
-    paste0("UKCP18_UK_12km/", rcp, "/pr/day/latest/pr_rcp85_land-rcm_uk_12km_", rcp, "_day_19801201-19901130.nc"),
-    paste0("UKCP18_UK_12km/", rcp, "/pr/day/latest/pr_rcp85_land-rcm_uk_12km_", rcp, "_day_19901201-20001130.nc"),
-    paste0("UKCP18_UK_12km/", rcp, "/pr/day/latest/pr_rcp85_land-rcm_uk_12km_", rcp, "_day_20001201-20101130.nc"),
-    paste0("UKCP18_UK_12km/", rcp, "/pr/day/latest/pr_rcp85_land-rcm_uk_12km_", rcp, "_day_20101201-20201130.nc"),
-    paste0("UKCP18_UK_12km/", rcp, "/pr/day/latest/pr_rcp85_land-rcm_uk_12km_", rcp, "_day_20201201-20301130.nc"),
-    paste0("UKCP18_UK_12km/", rcp, "/pr/day/latest/pr_rcp85_land-rcm_uk_12km_", rcp, "_day_20301201-20401130.nc"),
-    paste0("UKCP18_UK_12km/", rcp, "/pr/day/latest/pr_rcp85_land-rcm_uk_12km_", rcp, "_day_20401201-20501130.nc"),
-    paste0("UKCP18_UK_12km/", rcp, "/pr/day/latest/pr_rcp85_land-rcm_uk_12km_", rcp, "_day_20501201-20601130.nc"),
-    paste0("UKCP18_UK_12km/", rcp, "/pr/day/latest/pr_rcp85_land-rcm_uk_12km_", rcp, "_day_20601201-20701130.nc"),
-    paste0("UKCP18_UK_12km/", rcp, "/pr/day/latest/pr_rcp85_land-rcm_uk_12km_", rcp, "_day_20701201-20801130.nc")
+    paste0(pr_files, "_day_19801201-19901130.nc"),
+    paste0(pr_files, "_day_19901201-20001130.nc"),
+    paste0(pr_files, "_day_20001201-20101130.nc"),
+    paste0(pr_files, "_day_20101201-20201130.nc"),
+    paste0(pr_files, "_day_20201201-20301130.nc"),
+    paste0(pr_files, "_day_20301201-20401130.nc"),
+    paste0(pr_files, "_day_20401201-20501130.nc"),
+    paste0(pr_files, "_day_20501201-20601130.nc"),
+    paste0(pr_files, "_day_20601201-20701130.nc"),
+    paste0(pr_files, "_day_20701201-20801130.nc")
   )
   
   data_list <- lapply(file_names, read_netcdf, "pr")
@@ -326,7 +320,7 @@ for(rcp in climate_projections){
   
     # CHECKER 9 ---
   
-  # Calculate SPEI-12 -------------------------------------------------------
+  # Calculate SPEI --------------------------------------------------------
   
   # Set the start and end dates of the datasets:
   start <- c(1980, 12)
@@ -337,53 +331,53 @@ for(rcp in climate_projections){
   climate_balance_ts[is.na(climate_balance_ts)]=0 # Replace the NAs as these ruin the SPEI...
   # ^^ I don't think this actually uses the dates, as these are incorrect anyway
   
-  # Calculate SPEI12 - this is slow as I think it processes the masked 0s :(
+  # Calculate SPEI - this is slow as I think it processes the masked 0s :(
   if(calculate_spei==TRUE){
-    spei_full <- spei(data=climate_balance_ts, scale=12) # 
+    spei_full <- spei(data=climate_balance_ts, scale=SPEI_months) # 
     
     # Extract just the data part of this:
-    spei12 <- spei_full$fitted
-    # print(spei12[1:20,1:5]) # data[rows (months), columns (cells)]
-    # str(spei12)
+    speiX <- spei_full$fitted
+    # print(speiX[1:20,1:5]) # data[rows (months), columns (cells)]
+    # str(speiX)
     
-    print("SPEI12 calculated...")
+    print("SPEI calculated...")
   }
 
 
   # Save SPEI as csv --------------------------------------------------------
-  spei_backup_load_path = paste0(output_path, "UKCP18_", rcp, " SPEI 12.csv")
+  spei_backup_load_path = paste0(output_path, "UKCP18_", rcp, " SPEI", SPEI_months, ".csv")
 
   if(store_spei==TRUE){
-    write.csv(spei12, spei_backup_load_path, row.names=FALSE)
+    write.csv(speiX, spei_backup_load_path, row.names=FALSE)
   }
   
   if(read_spei==TRUE){
-    spei12 = as.matrix(read.csv(file = spei_backup_load_path, header = TRUE))
-    colnames(spei12) = NULL
-    str(spei12)
+    speiX = as.matrix(read.csv(file = spei_backup_load_path, header = TRUE))
+    colnames(speiX) = NULL
+    str(speiX)
   }
 
 
-  # Reshape SPEI 12 ----------------------------------------------------------
+  # Reshape SPEI -------------------------------------------------------------
   
-  # Reshape SPEI-12 array to be same dimensions as input data:
-  spei12_reshape <- array(spei12, # don't need to vectorise: as.vector(spei12)
+  # Reshape SPEI array to be same dimensions as input data:
+  speiX_reshape <- array(speiX, # don't need to vectorise: as.vector(speiX)
                   dim=c(dim(climate_balance_monthy)[1], # months 
                         dim(climate_balance_daily)[1], # columns (Easting) 
                         dim(climate_balance_daily)[2]) # rows (Northing)
   )
   
-  spei_map <- aperm(spei12_reshape, c(2, 3, 1))
+  spei_map <- aperm(speiX_reshape, c(2, 3, 1))
 
     # CHECKER 10 ---
 
-  # Plot Average SPEI 12 --- [surplus] ---------------------------------------
+  # Plot Average SPEI ------ [surplus] ---------------------------------------
   
   # spei_mean_raster <- rowMeans(spei_map, dims=2, na.rm=TRUE)
   # spei_mean_raster <- flip(t(raster(spei_mean_raster, crs=27700)))
   # extent(spei_mean_raster) <- grid_extent
   # 
-  # plot(spei_mean_raster, main="Average SPEI-12", 
+  # plot(spei_mean_raster, main="Average SPEI", 
   #      legend.args=list(text="", side=4, font=2, line=2.5, cex=0.8))
 
 
@@ -435,9 +429,9 @@ for(rcp in climate_projections){
     )
     
     # Set up directories for holding data will create warning if it already exists:
-    dir.create(paste0(output_path, "Probability of Climatic Drought - Gridded - ", rcp, "/"))
-    dir.create(paste0(output_path, "Average Length of Climatic Drought - Gridded - ", rcp, "/"))
-    dir.create(paste0(output_path, "Maximum Length of Climatic Drought - Gridded - ", rcp, "/"))
+    dir.create(paste0(output_path, "Probability of Drought - Gridded - ", rcp, "/"))
+    dir.create(paste0(output_path, "Average Length of Drought - Gridded - ", rcp, "/"))
+    dir.create(paste0(output_path, "Maximum Length of Drought - Gridded - ", rcp, "/"))
   
 
   # --- DECADES -------------------------------------------------------------
@@ -452,13 +446,13 @@ for(rcp in climate_projections){
     temp_raster = flip(t(raster(rowMeans(drought_indicator[,,t1:t2], na.rm=T, dim=2), crs=27700)))
     extent(temp_raster) = grid_extent
     writeRaster(temp_raster, format='ascii', overwrite=TRUE,
-                filename=paste0(output_path, "Probability of Climatic Drought - Gridded - ", rcp, "/drought_probability_raster_", rcp, "_", decades[i], ".asc"))
+                filename=paste0(output_path, "Probability of Drought - Gridded - ", rcp, "/drought_probability_raster_", rcp, "_", decades[i], ".asc"))
     
     # Average drought length:
     temp_raster <- flip(t(raster(apply(drought_indicator[,,t1:t2], c(1,2), length_stats, mean), crs=27700)))
     extent(temp_raster) <- grid_extent
     writeRaster(temp_raster, format='ascii', overwrite=TRUE,
-                filename=paste0(output_path, "Average Length of Climatic Drought - Gridded - ", rcp, "/drought_mean_length_raster_", rcp, "_", decades[i], ".asc"))
+                filename=paste0(output_path, "Average Length of Drought - Gridded - ", rcp, "/drought_mean_length_raster_", rcp, "_", decades[i], ".asc"))
     
     # Maximum drought length for each pixel over the data:
     # Supresses warning: no non-missing arguments to max; returning -Inf (fixed below)
@@ -467,7 +461,7 @@ for(rcp in climate_projections){
     temp_raster <- flip(t(raster(temp_raster, crs=27700)))
     extent(temp_raster) <- grid_extent
     writeRaster(temp_raster, format='ascii', overwrite=TRUE,
-                filename=paste0(output_path, "Maximum Length of Climatic Drought - Gridded - ", rcp, "/drought_max_length_raster_", rcp, "_", decades[i], ".asc"))
+                filename=paste0(output_path, "Maximum Length of Drought - Gridded - ", rcp, "/drought_max_length_raster_", rcp, "_", decades[i], ".asc"))
   }
   
 
@@ -483,14 +477,14 @@ for(rcp in climate_projections){
         temp_raster = flip(t(raster(rowMeans(drought_indicator[,,t1:t2], na.rm=T, dim=2), crs=27700)))
         extent(temp_raster) = grid_extent
         writeRaster(temp_raster,
-                    filename=paste0(output_path, "Probability of Climatic Drought - Gridded - ", rcp, "/drought_probability_raster_", rcp, "_", periods[i], ".asc"),
+                    filename=paste0(output_path, "Probability of Drought - Gridded - ", rcp, "/drought_probability_raster_", rcp, "_", periods[i], ".asc"),
                     format='ascii', overwrite=TRUE)
         
         # Average drought length:
         temp_raster <- flip(t(raster(apply(drought_indicator[,,t1:t2], c(1,2), length_stats, mean), crs=27700)))
         extent(temp_raster) <- grid_extent
         writeRaster(temp_raster, format='ascii', overwrite=TRUE,
-                    filename=paste0(output_path, "Average Length of Climatic Drought - Gridded - ", rcp, "/drought_mean_length_raster_", rcp, "_", periods[i], ".asc"))
+                    filename=paste0(output_path, "Average Length of Drought - Gridded - ", rcp, "/drought_mean_length_raster_", rcp, "_", periods[i], ".asc"))
         
         # Maximum drought length:
         # Supresses warning: no non-missing arguments to max; returning -Inf (fixed below)
@@ -499,13 +493,13 @@ for(rcp in climate_projections){
         temp_raster <- flip(t(raster(temp_raster, crs=27700)))
         extent(temp_raster) <- grid_extent
         writeRaster(temp_raster, format='ascii', overwrite=TRUE,
-                    filename=paste0(output_path, "Maximum Length of Climatic Drought - Gridded - ", rcp, "/drought_max_length_raster_", rcp, "_", periods[i], ".asc"))
+                    filename=paste0(output_path, "Maximum Length of Drought - Gridded - ", rcp, "/drought_max_length_raster_", rcp, "_", periods[i], ".asc"))
         
       }
     }
     
 
-    # --- WARMING PERIODS -----------------------------------------------------
+  # --- WARMING PERIODS -----------------------------------------------------
 
     for(i in warming_levels){
       
@@ -518,13 +512,13 @@ for(rcp in climate_projections){
       temp_raster = flip(t(raster(rowMeans(drought_indicator[,,wp], na.rm=T, dim=2), crs=27700)))
       extent(temp_raster) = grid_extent
       writeRaster(temp_raster, format='ascii', overwrite=TRUE,
-                  filename=paste0(output_path, "Probability of Climatic Drought - Gridded - ", rcp, "/drought_probability_raster_", rcp, "_", as.character(start_year), "-", as.character(start_year+30), ".asc"))
+                  filename=paste0(output_path, "Probability of Drought - Gridded - ", rcp, "/drought_probability_raster_", rcp, "_", as.character(start_year), "-", as.character(start_year+30), ".asc"))
       
       # Average drought length:
       temp_raster <- flip(t(raster(apply(drought_indicator[,,wp], c(1,2), length_stats, mean), crs=27700)))
       extent(temp_raster) <- grid_extent
       writeRaster(temp_raster, format='ascii', overwrite=TRUE,
-                  filename=paste0(output_path, "Average Length of Climatic Drought - Gridded - ", rcp, "/drought_mean_length_raster_", rcp, "_", as.character(start_year), "-", as.character(start_year+30), ".asc"))
+                  filename=paste0(output_path, "Average Length of Drought - Gridded - ", rcp, "/drought_mean_length_raster_", rcp, "_", as.character(start_year), "-", as.character(start_year+30), ".asc"))
       
       # Maximum drought length:
       # Supresses warning: no non-missing arguments to max; returning -Inf (fixed below)
@@ -533,7 +527,7 @@ for(rcp in climate_projections){
       temp_raster <- flip(t(raster(temp_raster, crs=27700)))
       extent(temp_raster) <- grid_extent
       writeRaster(temp_raster, format='ascii', overwrite=TRUE,
-                  filename=paste0(output_path, "Maximum Length of Climatic Drought - Gridded - ", rcp, "/drought_max_length_raster_", rcp, "_", as.character(start_year), "-", as.character(start_year+30), ".asc"))
+                  filename=paste0(output_path, "Maximum Length of Drought - Gridded - ", rcp, "/drought_max_length_raster_", rcp, "_", as.character(start_year), "-", as.character(start_year+30), ".asc"))
       
     }
   }
