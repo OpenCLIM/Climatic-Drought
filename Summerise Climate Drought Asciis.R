@@ -1,6 +1,11 @@
-# Summarise Climate Drought Asciis
+# Summarise Climate Drought Asciis ----------------------------------------
+# Script 3
+
 # Ben Smith
+# Newcastle University
 # 14/11/2022
+
+# Notes -------------------------------------------------------------------
 
 # This script will summarise the drought asciis produced from the UKCP18 data.
 # Min, Mean, Max functions will be applied across the different RCPs for each
@@ -57,7 +62,8 @@ files = files[nchar(files) == file_name_length]
 # Run through the calculated statistics -----------------------------------
 
 stat_file_names = list(c("Drought_Probability", pr_folder, pr_file_name),
-                       c("Drought_Mean_Length", av_folder, av_file_name))
+                       c("Drought_Mean_Length", av_folder, av_file_name),
+                       c("Drought_Max_Length", mx_folder, mx_file_name))
 
 for(stat in stat_file_names){
   
