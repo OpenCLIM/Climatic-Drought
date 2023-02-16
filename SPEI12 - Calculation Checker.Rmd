@@ -5,15 +5,13 @@ output:
     df_print: paged
 ---
 
+Script 1b
+
 In the 'SPEI12 - Calculation.R' script, there are --- Checker No.#.
 These correlate to code chunks below that can be run to check the calculations.
 These were done through the calculation process and we believe that the code
 is correct. These are recorded for aid / subsequent checks.
 
-### Questions
-  - Do we need to have bias corrected the data?
-  - Do we need to use a reference period for the SPEI (baseline period)?
-  - Do requesters understand SPEI 12?
 
 ```{r}
 # Load in a shapefile of the UK to check whether the output looks nice over the UK

@@ -10,23 +10,23 @@
 # Preamble ----------------------------------------------------------------
 
 # Set some variables for folder/file paths:
-raw_ouput_folder = "I:/SHETRAN_GB_2021/08_Analysis/Climatic-Drought/Outputs/SPEI_12/"
-PP_folder = "I:/SHETRAN_GB_2021/08_Analysis/Climatic-Drought/Post Processing and GIS/SPEI_12"
+raw_ouput_folder = "I:/SHETRAN_GB_2021/08_Analysis/Climatic-Drought/Outputs/SPEI_3/"
+PP_folder = "I:/SHETRAN_GB_2021/08_Analysis/Climatic-Drought/Post Processing and GIS/SPEI_3"
 
-rcps <- c('01', '04', '05', '06', '07', '08', '09', '10', '11', '12', '13', '15')
+rcps = c('01', '04', '05', '06', '07', '08', '09', '10', '11', '12', '13', '15')
 
 number_of_warming_periods = 6
 
 # SPEI_periods = c("3", "12")
 
 # Set some more specifying the names of the outputs:
-av_folder <- "Average Length of Climatic Drought - Gridded - "
+av_folder <- "Average Length of Drought - Gridded - "
 av_file_name <- "drought_mean_length_raster_"
 
-mx_folder <- "Maximum Length of Climatic Drought - Gridded - "
+mx_folder <- "Maximum Length of Drought - Gridded - "
 mx_file_name <- "drought_max_length_raster_"
 
-pr_folder <- "Probability of Climatic Drought - Gridded - "
+pr_folder <- "Probability of Drought - Gridded - "
 pr_file_name <- "drought_probability_raster_"
 
 # Get an ascii header:
@@ -60,10 +60,10 @@ stat_file_names = list(c("Drought_Probability", pr_folder, pr_file_name),
                        c("Drought_Mean_Length", av_folder, av_file_name))
 
 for(stat in stat_file_names){
-
-# Collect data for the warming period -------------------------------------
-
-    for(i in 1:number_of_warming_periods){
+  
+  # Collect data for the warming period -------------------------------------
+  
+  for(i in 1:number_of_warming_periods){
     
     wp_list = list()
     
@@ -80,14 +80,14 @@ for(stat in stat_file_names){
       
       # Store that ascii in a list:
       wp_list[[rcp]] = as.matrix(read.csv(asc, skip=6, na.strings = -9999, header = FALSE, sep = " "))
-    
+      
     }
     
     # Convert the list of asciis for that warming period into an array:
     rcp_array <- array(data = unlist(wp_list), 
-                 dim = c(dim(wp_list[[1]])[1], dim(wp_list[[1]])[2], length(wp_list)))
+                       dim = c(dim(wp_list[[1]])[1], dim(wp_list[[1]])[2], length(wp_list)))
     
-# Process the data in the warming period list -----------------------------
+    # Process the data in the warming period list -----------------------------
     
     # Min:
     asc_min = apply(X = rcp_array, MARGIN = 1:2, FUN = min)
@@ -101,13 +101,13 @@ for(stat in stat_file_names){
     asc_max = apply(rcp_array, 1:2, max)
     asc_max[is.na(asc_max)] = -9999
     
-
-# Write the summaries -----------------------------------------------------
-
+    
+    # Write the summaries -----------------------------------------------------
+    
     # Min:
     write.table(file = paste0(PP_folder, " ", stat[1], " Warming_Period_", i, " min.asc"),
-              x = rbind(asc_header, round(asc_min, 4)), 
-              row.names = FALSE, col.names = FALSE, quote = FALSE, na = "")
+                x = rbind(asc_header, round(asc_min, 4)), 
+                row.names = FALSE, col.names = FALSE, quote = FALSE, na = "")
     
     # Mean:
     write.table(file = paste0(PP_folder, " ", stat[1], " Warming_Period_", i, " mean.asc"),
@@ -119,7 +119,7 @@ for(stat in stat_file_names){
                 x = rbind(asc_header, round(asc_max, 4)), 
                 row.names = FALSE, col.names = FALSE, quote = FALSE, na = "")
     
-   }
+  }
 }
 
 
