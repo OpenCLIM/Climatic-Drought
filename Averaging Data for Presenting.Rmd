@@ -1,23 +1,27 @@
 ---
 title: "Averaging Data for Presenting"
-output: html_notebook
+output:
+  html_document:
+    df_print: paged
 ---
 
 This script will go through the datasets for the different RCPs and take the different outputs, it will read them all in in order to make box plot and maps.
 
 ```{r Setup, echo=FALSE}
-# Set some cariables for folder/file paths:
-data_store <- "I:/SHETRAN_GB_2021/analysis/CLimatic-Drought/Outputs/"
-rcps <- c('01', '04', '06', '07', '08', '09', '10', '11', '12', '13', '15') # , '05'
+library(plotly)
+
+# Set some variables for folder/file paths:
+data_store <- "I:/SHETRAN_GB_2021/08_Analysis/Climatic-Drought/Outputs/SPEI_12/"
+rcps <- c('01', '04', '05', '06', '07', '08', '09', '10', '11', '12', '13', '15')
 
 # Set some more specifying the names of the outputs:
-av_folder <- "Average Length of Climatic Drought - Gridded - "
+av_folder <- "Average Length of Drought - Gridded - "
 av_file_name <- "drought_mean_length_raster_"
 
-mx_folder <- "Maximum Length of Climatic Drought - Gridded - "
+mx_folder <- "Maximum Length of Drought - Gridded - "
 mx_file_name <- "drought_max_length_raster_"
 
-pr_folder <- "Probability of Climatic Drought - Gridded - "
+pr_folder <- "Probability of Drought - Gridded - "
 pr_file_name <- "drought_probability_raster_"
 
 date_names = c("2000s", "2010s", "2020s", "2030s", "2040s", "2050s", "2060s")
@@ -36,7 +40,6 @@ aggregate_asscis = function(path){
 
 
 # Drought Probability
-
 ```{r , echo=FALSE}
 prob = list()
 for (i in 1:7){
@@ -64,8 +67,8 @@ fig_pr <- fig_pr %>% layout(title="Probability of a Month being a Drought",
 fig_pr
 ```
  
-# Mean Drought Length
 
+# Mean Drought Length
 ```{r}
 av = list()
 for (i in 1:7){
@@ -120,6 +123,41 @@ fig_mx <- fig_mx %>% layout(title="Maximum Drought Length (months)",
                       yaxis = list(title="Length (months)"))
 
 fig_mx
+```
+
+
+# Maps of Statistics
+
+Show the three statistics (probability, mean length, max length) for the UK for the baseline and 2050 periods.
+
+Average these across the 12 RCPs or show all of them at once.
+
+```{r}
+# gridded_pr_2050
+# Switch=TRUE
+# for (rcp in rcps){
+#   
+#   read_path <- paste0(data_store, pr_folder, rcp, "/", pr_file_name, rcp, file_dates[6], ".asc")
+#   
+#   if(Switch==TRUE){
+#     
+#     Switch=FALSE
+#     
+#     h = read.csv(read_path, header = FALSE, sep = " ", nrows = 6)[1:2]
+#     
+#     x = read.csv(read_path, header = FALSE, sep = " ", skip = 6, na.strings = -9999)
+#     
+#     
+#   }
+#   
+#   agg_asc = unlist(read.csv(read_path, skip=6, na.strings = -9999, header = FALSE, sep = " "))
+#   agg_asc = unname(agg_asc[!is.na(agg_asc)])
+#   agg_asc = agg_asc[!agg_asc==-9999]
+#   
+#   
+#   x = c(x, aggregate_asscis(read_path))
+# }
+# mx[[date_names[i]]]=x
 ```
 
 
